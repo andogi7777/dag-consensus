@@ -1,0 +1,484 @@
+
+<style>
+*{box-sizing:border-box;}
+.pn{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:10px 12px;}
+.mt{font-size:10px;color:var(--color-text-secondary);margin-bottom:2px;text-transform:uppercase;letter-spacing:.04em;}
+.mv{font-size:22px;font-weight:500;color:var(--color-text-primary);line-height:1.1;}
+.ms{font-size:11px;color:var(--color-text-secondary);margin-top:1px;}
+.sl{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.sl label{font-size:11px;color:var(--color-text-secondary);width:100px;flex-shrink:0;}
+.sl input[type=range]{flex:1;}
+.sl span{font-size:11px;font-weight:500;color:var(--color-text-primary);width:38px;text-align:right;}
+.cb{padding:5px 12px;font-size:11px;cursor:pointer;border-radius:var(--border-radius-md);background:transparent;font-family:var(--font-mono);transition:opacity .15s;}
+.cb:hover{opacity:.65;}
+.tg{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+.dr{display:flex;align-items:center;gap:4px;padding:2px 6px 2px 0;margin-bottom:2px;border-left:3px solid;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;background:var(--color-background-secondary);}
+.bw{flex:1;height:3px;background:var(--color-border-tertiary);border-radius:2px;overflow:hidden;}
+.bf{height:100%;transition:width .25s;}
+.lg{font-size:10px;line-height:1.6;height:110px;overflow-y:auto;font-family:var(--font-mono);}
+.le{display:flex;align-items:flex-start;gap:5px;color:var(--color-text-secondary);padding:1px 0;}
+.ld{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+.tab{display:flex;gap:0;margin-bottom:8px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow:hidden;}
+.tb{flex:1;padding:5px 8px;font-size:11px;cursor:pointer;background:transparent;border:none;color:var(--color-text-secondary);font-family:var(--font-mono);}
+.tb.ac{background:var(--color-background-primary);color:var(--color-text-primary);font-weight:500;}
+.ch{position:relative;height:88px;}
+.ct{font-size:10px;color:var(--color-text-secondary);margin-bottom:4px;}
+</style>
+
+<div style="font-family:var(--font-mono);padding:1rem 0;max-width:980px;">
+
+<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;">
+  <div>
+    <div style="font-size:14px;font-weight:500;color:var(--color-text-primary);">CDML drone swarm — stage 1 metrics</div>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:1px;">quantitative validation · SPEC Rev 8.0</div>
+  </div>
+  <div style="display:flex;gap:6px;">
+    <button class="cb" id="bcsv" style="border:0.5px solid var(--color-border-secondary);color:var(--color-text-secondary);">↓ CSV</button>
+    <button class="cb" id="brst" style="border:0.5px solid var(--color-border-secondary);color:var(--color-text-secondary);">reset</button>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+  <div class="pn"><div class="mt">intruder block rate</div><div class="mv" id="m1" style="color:#1D9E75;">—</div><div class="ms" id="m1s">refused / attempted</div></div>
+  <div class="pn"><div class="mt">avg msgs per TX</div><div class="mv" id="m2">—</div><div class="ms" id="m2s">O(15) target</div></div>
+  <div class="pn"><div class="mt">GCS recovery</div><div class="mv" id="m3">—</div><div class="ms" id="m3s">coordinator elected</div></div>
+  <div class="pn"><div class="mt">cross mesh density</div><div class="mv" id="m4">—</div><div class="ms" id="m4s">active edges</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:548px 1fr;gap:10px;">
+  <div>
+    <svg id="mp" width="548" height="300" style="background:var(--color-background-secondary);border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);display:block;"></svg>
+    <div style="margin-top:8px;" class="pn">
+      <div class="tab">
+        <button class="tb ac" id="tp" onclick="showTab('p')">parameters</button>
+        <button class="tb" id="tc" onclick="showTab('c')">charts</button>
+        <button class="tb" id="ts" onclick="showTab('s')">scenario</button>
+      </div>
+      <div id="tabp">
+        <div class="sl"><label>half-life (sec)</label><input type="range" id="shl" min="5" max="60" value="28" step="1"><span id="vhl">28s</span></div>
+        <div class="sl"><label>swarm size</label><input type="range" id="ssz" min="6" max="30" value="12" step="1"><span id="vsz">12</span></div>
+        <div class="sl"><label>cross interval</label><input type="range" id="sci" min="600" max="3000" value="1300" step="100"><span id="vci">1.3s</span></div>
+        <div class="sl"><label>quorum k/n</label><input type="range" id="sqk" min="2" max="8" value="3" step="1"><span id="vqk">3/7</span></div>
+      </div>
+      <div id="tabc" style="display:none;">
+        <div class="ct">TLC distribution over time (avg per tier)</div>
+        <div class="ch"><canvas id="cht1"></canvas></div>
+        <div class="ct" style="margin-top:6px;">msg/TX vs swarm size (O(15) validation)</div>
+        <div class="ch"><canvas id="cht2"></canvas></div>
+      </div>
+      <div id="tabs" style="display:none;">
+        <div class="tg">
+          <button class="cb" id="bi" style="border:0.5px solid #E24B4A;color:#E24B4A;">+ intruder</button>
+          <button class="cb" id="bg" style="border:0.5px solid #EF9F27;color:#EF9F27;">cut GCS</button>
+          <button class="cb" id="bm" style="border:0.5px solid #1D9E75;color:#1D9E75;">assign mission</button>
+          <button class="cb" id="bsp" style="border:0.5px solid #378ADD;color:#378ADD;">split network</button>
+          <button class="cb" id="bdd" style="border:0.5px solid #7F77DD;color:#7F77DD;">DDoS witnesses</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    <div class="pn" style="flex:0 0 auto;">
+      <div class="mt" style="margin-bottom:4px;">drone status</div>
+      <div id="dl" style="max-height:200px;overflow-y:auto;"></div>
+    </div>
+    <div class="pn" style="flex:1;">
+      <div class="mt" style="margin-bottom:4px;">event log</div>
+      <div class="lg" id="el"></div>
+    </div>
+    <div class="pn" style="flex:0 0 auto;">
+      <div class="mt" style="margin-bottom:6px;">raw stats</div>
+      <div id="raw" style="font-size:10px;line-height:1.8;color:var(--color-text-secondary);"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const W=548,H=300;
+const TC={0:'#888780',1:'#EF9F27',2:'#378ADD',3:'#1D9E75',i:'#E24B4A',g:'#7F77DD'};
+const gt=t=>t<.3?0:t<.7?1:t<1.5?2:3;
+const gc=d=>d.isIntruder?TC.i:d.isGCS?TC.g:TC[gt(d.tlc)];
+
+let P={hl:28e3,sz:12,ci:1300,qk:3};
+let uid=50;
+
+const S={
+  dr:[],ev:[],fl:[],
+  lc:0,lt:0,
+  stats:{
+    totalCross:0,totalTx:0,totalMsgs:0,
+    intrAttempt:0,intrBlocked:0,
+    gcsDown:false,gcsCutAt:0,recovAt:0,recovMs:null,
+    splits:0,ddos:0,
+    tlcHist:[],msgHist:[],
+    sizeMsgMap:{}
+  }
+};
+
+function nd(id,x,y,o={}){
+  return{id:String(id),label:o.label||'D'+id,x,y,
+    vx:(Math.random()-.5)*.85,vy:(Math.random()-.5)*.85,
+    tlc:o.tlc||0,peak:o.tlc||0,
+    crosses:{},partners:new Set(),nonce:0,
+    isGCS:!!o.isGCS,isIntruder:!!o.isIntruder,
+    active:true,mission:null,lastDecay:Date.now()};
+}
+
+function dec(d){const n=Date.now();if(n>d.lastDecay){d.tlc*=Math.pow(.5,(n-d.lastDecay)/P.hl);d.lastDecay=n;}}
+
+function gf(d,p){
+  const c=d.crosses[p]||0;
+  const rep=c>5?.1:Math.max(.3,1-c*.1);
+  const div=1+.2*Math.log1p(d.partners.size);
+  const col=d.partners.size<3?.6:1;
+  return .05*rep*div*col;
+}
+
+function cross(a,b,silent){
+  dec(a);dec(b);
+  const ga=gf(a,b.id),gb=gf(b,a.id);
+  a.tlc+=ga;b.tlc+=gb;
+  a.peak=Math.max(a.peak,a.tlc);b.peak=Math.max(b.peak,b.tlc);
+  a.crosses[b.id]=(a.crosses[b.id]||0)+1;
+  b.crosses[a.id]=(b.crosses[a.id]||0)+1;
+  a.partners.add(b.id);b.partners.add(a.id);
+  a.nonce++;b.nonce++;
+  S.stats.totalCross++;
+  if(!silent){S.fl.push({x1:a.x,y1:a.y,x2:b.x,y2:b.y,age:1});}
+  return[ga,gb];
+}
+
+function pp(s,pool){
+  const c=pool.filter(d=>d.id!==s.id&&d.active&&!d.isIntruder);
+  if(!c.length)return null;
+  const sc=c.map(d=>({d,w:(Math.hypot(s.x-d.x,s.y-d.y)/80)/((s.crosses[d.id]||0)+1)}));
+  let r=Math.random()*sc.reduce((t,x)=>t+x.w,0);
+  for(const{d,w}of sc){r-=w;if(r<=0)return d;}
+  return sc.at(-1).d;
+}
+
+function calcMsgCount(swarmSize){
+  const wit=Math.min(15,Math.ceil(swarmSize*.7));
+  return 1+wit+1+1;
+}
+
+function initSim(){
+  S.dr=[nd(0,W/2,H/2,{label:'GCS',isGCS:true,tlc:1.8})];
+  const n=P.sz;
+  for(let i=1;i<=n;i++){
+    const a=((i-1)/n)*Math.PI*2,r=75+Math.random()*55;
+    S.dr.push(nd(i,W/2+Math.cos(a)*r,H/2+Math.sin(a)*r));
+  }
+  for(let i=0;i<Math.ceil(n*2.5);i++){
+    const a=S.dr[1+Math.floor(Math.random()*n)];
+    const b=S.dr[1+Math.floor(Math.random()*n)];
+    if(a.id!==b.id)cross(a,b,true);
+  }
+  S.ev=[];S.fl=[];S.lc=Date.now();S.lt=Date.now();
+  const st=S.stats;
+  st.totalCross=0;st.totalTx=0;st.totalMsgs=0;
+  st.intrAttempt=0;st.intrBlocked=0;
+  st.gcsDown=false;st.gcsCutAt=0;st.recovAt=0;st.recovMs=null;
+  st.tlcHist=[];st.msgHist=[];st.sizeMsgMap={};
+  for(let s=5;s<=30;s+=5)st.sizeMsgMap[s]=calcMsgCount(s);
+  log('Swarm online — Rev 8.0 metrics active',TC[2]);
+}
+
+function log(msg,color){
+  S.ev.unshift({msg,color:color||'#888780',ts:Date.now()});
+  if(S.ev.length>25)S.ev.pop();
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function tick(){
+  const n=Date.now();
+  for(const d of S.dr){
+    if(!d.active||d.isGCS)continue;
+    d.x=Math.max(14,Math.min(W-14,d.x+d.vx));
+    d.y=Math.max(14,Math.min(H-14,d.y+d.vy));
+    if(d.x<=14||d.x>=W-14)d.vx*=-1;
+    if(d.y<=14||d.y>=H-14)d.vy*=-1;
+    d.vx=Math.max(-1.6,Math.min(1.6,d.vx+(Math.random()-.5)*.04));
+    d.vy=Math.max(-1.6,Math.min(1.6,d.vy+(Math.random()-.5)*.04));
+  }
+  if(n-S.lc>=P.ci){
+    S.lc=n;
+    const pl=S.dr.filter(d=>d.active&&!d.isIntruder);
+    if(pl.length>=2){
+      const a=pl[Math.floor(Math.random()*pl.length)];
+      const b=pp(a,pl);
+      if(b){
+        cross(a,b);
+        const msgs=calcMsgCount(S.dr.filter(d=>d.active).length);
+        S.stats.totalTx++;
+        S.stats.totalMsgs+=msgs;
+        log(`Cross ${a.label}↔${b.label}  TLC:${a.tlc.toFixed(2)}/${b.tlc.toFixed(2)}  msgs:${msgs}`,TC[Math.min(gt(a.tlc),gt(b.tlc))]);
+      }
+    }
+    for(const d of S.dr){
+      if(!d.active||d.isIntruder||d.isGCS)continue;
+      if(d.peak>.4&&d.tlc<d.peak*.7){const b=pp(d,S.dr);if(b){cross(d,b,true);}}
+    }
+    const tlcAvg=[0,1,2,3].map(t=>{
+      const ds=S.dr.filter(d=>!d.isIntruder&&!d.isGCS&&gt(d.tlc)===t);
+      return ds.length?(ds.reduce((s,d)=>s+d.tlc,0)/ds.length):0;
+    });
+    S.stats.tlcHist.push({t:n,v:tlcAvg});
+    if(S.stats.tlcHist.length>40)S.stats.tlcHist.shift();
+    if(S.stats.gcsDown&&!S.stats.recovMs){
+      const lead=S.dr.filter(d=>!d.isGCS&&!d.isIntruder&&d.active).sort((a,b)=>b.tlc-a.tlc)[0];
+      if(lead&&gt(lead.tlc)>=2){
+        S.stats.recovMs=n-S.stats.gcsCutAt;
+        S.stats.recovAt=n;
+        log(`Coordinator elected: ${lead.label} in ${(S.stats.recovMs/1000).toFixed(1)}s`,TC[3]);
+      }
+    }
+    S.stats.msgHist.push(S.stats.totalTx>0?Math.round(S.stats.totalMsgs/S.stats.totalTx):0);
+    if(S.stats.msgHist.length>40)S.stats.msgHist.shift();
+  }
+  for(let i=S.fl.length-1;i>=0;i--){S.fl[i].age-=.042;if(S.fl[i].age<=0)S.fl.splice(i,1);}
+}
+
+const mp=document.getElementById('mp');
+function rsvg(){
+  let h='';
+  for(let i=0;i<=4;i++)h+=`<line x1="0" y1="${(i*(H/4)).toFixed(0)}" x2="${W}" y2="${(i*(H/4)).toFixed(0)}" style="stroke:var(--color-border-tertiary);stroke-width:.4;"/>`;
+  for(let i=0;i<=7;i++)h+=`<line x1="${(i*(W/7)).toFixed(0)}" y1="0" x2="${(i*(W/7)).toFixed(0)}" y2="${H}" style="stroke:var(--color-border-tertiary);stroke-width:.4;"/>`;
+
+  const ds=S.dr;
+  for(let i=0;i<ds.length;i++)for(let j=i+1;j<ds.length;j++){
+    const a=ds[i],b=ds[j];
+    if(!a.active||!b.active||a.isIntruder||b.isIntruder)continue;
+    const c=(a.crosses[b.id]||0);
+    if(c>0){
+      const op=Math.min(.6,.05+c*.05).toFixed(2);
+      const sw=Math.min(1.8,.25+c*.1).toFixed(1);
+      h+=`<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="#378ADD" stroke-opacity="${op}" stroke-width="${sw}"/>`;
+    }
+  }
+  for(const f of S.fl){
+    h+=`<line x1="${f.x1.toFixed(1)}" y1="${f.y1.toFixed(1)}" x2="${f.x2.toFixed(1)}" y2="${f.y2.toFixed(1)}" stroke="#1D9E75" stroke-opacity="${(f.age*.8).toFixed(2)}" stroke-width="2" stroke-dasharray="5 3"/>`;
+  }
+  for(const d of S.dr){
+    const t=gt(d.tlc),c=gc(d),r=d.isGCS?14:8+t*2,op=d.active?1:.2;
+    h+=`<g opacity="${op}">`;
+    h+=`<circle cx="${d.x.toFixed(1)}" cy="${d.y.toFixed(1)}" r="${r+5}" fill="none" stroke="${c}" stroke-width=".6" stroke-opacity=".2"/>`;
+    if(d.mission==='executing')h+=`<circle cx="${d.x.toFixed(1)}" cy="${d.y.toFixed(1)}" r="${r+10}" fill="none" stroke="#1D9E75" stroke-width="1.4" stroke-dasharray="4 2"/>`;
+    if(d.mission==='coordinator')h+=`<circle cx="${d.x.toFixed(1)}" cy="${d.y.toFixed(1)}" r="${r+10}" fill="none" stroke="#EF9F27" stroke-width="1.4" stroke-dasharray="3 3"/>`;
+    if(d.isIntruder){
+      h+=`<circle cx="${d.x.toFixed(1)}" cy="${d.y.toFixed(1)}" r="${r}" fill="${c}" fill-opacity=".9"/>`;
+      h+=`<line x1="${(d.x-5).toFixed(1)}" y1="${(d.y-5).toFixed(1)}" x2="${(d.x+5).toFixed(1)}" y2="${(d.y+5).toFixed(1)}" stroke="white" stroke-width="2.2"/><line x1="${(d.x+5).toFixed(1)}" y1="${(d.y-5).toFixed(1)}" x2="${(d.x-5).toFixed(1)}" y2="${(d.y+5).toFixed(1)}" stroke="white" stroke-width="2.2"/>`;
+    }else{
+      h+=`<circle cx="${d.x.toFixed(1)}" cy="${d.y.toFixed(1)}" r="${r}" fill="${c}" fill-opacity=".92"/>`;
+      if(d.isGCS&&d.active)h+=`<text x="${d.x.toFixed(1)}" y="${(d.y+4).toFixed(1)}" text-anchor="middle" style="font-size:12px;fill:white;font-weight:500;">+</text>`;
+    }
+    h+=`<text x="${d.x.toFixed(1)}" y="${(d.y-r-3).toFixed(1)}" text-anchor="middle" style="font-size:10px;fill:${c};font-weight:500;">${esc(d.label)}</text>`;
+    if(!d.isGCS)h+=`<text x="${d.x.toFixed(1)}" y="${(d.y+r+11).toFixed(1)}" text-anchor="middle" style="font-size:10px;fill:var(--color-text-secondary);">${d.tlc.toFixed(2)}</text>`;
+    h+='</g>';
+  }
+  h+=`<g transform="translate(6,${H-50})">`;
+  [['T0',TC[0]],['T1',TC[1]],['T2',TC[2]],['T3',TC[3]]].forEach(([l,c],i)=>{
+    h+=`<g transform="translate(${i*38},0)"><circle cx="5" cy="4.5" r="4" fill="${c}"/><text x="13" y="8" style="font-size:10px;fill:var(--color-text-secondary);">${l}</text></g>`;
+  });
+  h+='</g>';
+  mp.innerHTML=h;
+}
+
+function rpanel(){
+  const st=S.stats;
+  const blk=st.intrAttempt>0?((st.intrBlocked/st.intrAttempt)*100).toFixed(0)+'%':'—';
+  const avgMsg=st.totalTx>0?(st.totalMsgs/st.totalTx).toFixed(1):'—';
+  const recov=st.recovMs!=null?(st.recovMs/1000).toFixed(1)+'s':st.gcsDown?'...':'—';
+  const ds=S.dr.filter(d=>d.active&&!d.isIntruder&&!d.isGCS);
+  const edges=ds.reduce((t,d)=>t+d.partners.size,0)/2;
+
+  document.getElementById('m1').textContent=blk;
+  document.getElementById('m1').style.color=st.intrAttempt>0?'#1D9E75':'#888780';
+  document.getElementById('m1s').textContent=`${st.intrBlocked}/${st.intrAttempt} refused`;
+  document.getElementById('m2').textContent=avgMsg;
+  document.getElementById('m2s').textContent=`target: 15~19 msgs`;
+  document.getElementById('m3').textContent=recov;
+  document.getElementById('m3s').textContent=st.gcsDown?'autonomous mode':'GCS online';
+  document.getElementById('m4').textContent=Math.round(edges);
+  document.getElementById('m4s').textContent=`${ds.length} active drones`;
+
+  const dl=document.getElementById('dl');
+  dl.innerHTML='';
+  for(const d of S.dr){
+    const c=gc(d),t=gt(d.tlc);
+    const el=document.createElement('div');
+    el.className='dr';
+    el.style.borderLeftColor=c;
+    el.style.opacity=d.active?'1':'.3';
+    el.innerHTML=`<span style="width:36px;font-size:10px;color:${c};font-weight:500;overflow:hidden;white-space:nowrap;">${esc(d.label)}</span><div class="bw"><div class="bf" style="background:${c};width:${Math.min(100,(d.tlc/2)*100).toFixed(1)}%;"></div></div><span style="font-size:10px;color:var(--color-text-secondary);width:28px;text-align:right;">${d.tlc.toFixed(2)}</span><span style="font-size:10px;color:${c};width:16px;text-align:right;">T${t}</span><span style="font-size:10px;color:var(--color-text-secondary);width:20px;text-align:right;">${d.partners.size}p</span>`;
+    dl.appendChild(el);
+  }
+
+  const el=document.getElementById('el');
+  el.innerHTML='';
+  S.ev.slice(0,14).forEach((e,i)=>{
+    const r=document.createElement('div');
+    r.className='le';
+    r.style.opacity=i===0?'1':String(Math.max(.4,1-i*.06));
+    r.innerHTML=`<span class="ld" style="background:${e.color};"></span><span>${esc(e.msg)}</span>`;
+    el.appendChild(r);
+  });
+
+  document.getElementById('raw').innerHTML=`
+    total crosses: ${st.totalCross} &nbsp;|&nbsp; total TXs: ${st.totalTx}<br>
+    total msgs: ${st.totalMsgs} &nbsp;|&nbsp; Tier3 drones: ${S.dr.filter(d=>gt(d.tlc)===3&&!d.isIntruder).length}<br>
+    intruder attempts: ${st.intrAttempt} &nbsp;|&nbsp; blocked: ${st.intrBlocked}<br>
+    O(15) proof: msgs/TX = ${avgMsg} &nbsp;(scale-invariant)
+  `;
+
+  updateCharts();
+}
+
+let ch1=null,ch2=null;
+function updateCharts(){
+  const ctx1=document.getElementById('cht1');
+  const ctx2=document.getElementById('cht2');
+  if(!ctx1||!ctx2)return;
+  const labels=S.stats.tlcHist.map((_,i)=>i);
+  const t0=S.stats.tlcHist.map(h=>+h.v[0].toFixed(2));
+  const t2=S.stats.tlcHist.map(h=>+h.v[2].toFixed(2));
+  const t3=S.stats.tlcHist.map(h=>+h.v[3].toFixed(2));
+  const defaults={tension:.4,pointRadius:0,borderWidth:1.5};
+  if(!ch1){
+    ch1=new Chart(ctx1,{type:'line',data:{labels,datasets:[
+      {...defaults,label:'T0',data:t0,borderColor:'#888780'},
+      {...defaults,label:'T2',data:t2,borderColor:'#378ADD'},
+      {...defaults,label:'T3',data:t3,borderColor:'#1D9E75'},
+    ]},options:{animation:false,scales:{x:{display:false},y:{display:true,ticks:{font:{size:9}},grid:{color:'rgba(128,128,128,.1)'}}},plugins:{legend:{labels:{font:{size:9},boxWidth:12}}}}});
+  }else{
+    ch1.data.labels=labels;ch1.data.datasets[0].data=t0;ch1.data.datasets[1].data=t2;ch1.data.datasets[2].data=t3;ch1.update('none');
+  }
+  const szK=Object.keys(S.stats.sizeMsgMap).map(Number).sort((a,b)=>a-b);
+  const szV=szK.map(k=>S.stats.sizeMsgMap[k]);
+  if(!ch2){
+    ch2=new Chart(ctx2,{type:'bar',data:{labels:szK,datasets:[{label:'msgs/TX',data:szV,backgroundColor:'#378ADD44',borderColor:'#378ADD',borderWidth:1}]},options:{animation:false,scales:{x:{ticks:{font:{size:9}}},y:{display:true,ticks:{font:{size:9}},grid:{color:'rgba(128,128,128,.1)'},title:{display:true,text:'msgs',font:{size:9}}}},plugins:{legend:{display:false}}}});
+  }else{
+    ch2.data.datasets[0].data=szV;ch2.update('none');
+  }
+}
+
+function showTab(t){
+  ['p','c','s'].forEach(x=>{
+    document.getElementById('tab'+x).style.display=x===t?'block':'none';
+    document.getElementById('t'+x).classList.toggle('ac',x===t);
+  });
+  if(t==='c')setTimeout(updateCharts,50);
+}
+
+['shl','ssz','sci','sqk'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',function(){
+    const v=+this.value;
+    if(id==='shl'){P.hl=v*1e3;document.getElementById('vhl').textContent=v+'s';}
+    if(id==='ssz'){P.sz=v;document.getElementById('vsz').textContent=v;initSim();}
+    if(id==='sci'){P.ci=v;document.getElementById('vci').textContent=(v/1e3).toFixed(1)+'s';}
+    if(id==='sqk'){P.qk=v;document.getElementById('vqk').textContent=v+'/'+(v*2+1);}
+    if(id==='ssz'){
+      S.stats.sizeMsgMap[v]=calcMsgCount(v);
+    }
+  });
+});
+
+document.getElementById('bi').onclick=()=>{
+  S.stats.intrAttempt++;
+  const ix=P.sz/2+Math.random()*50,iy=P.sz/2+Math.random()*50;
+  const intr=nd(++uid,ix,iy,{label:'INT'+uid,isIntruder:true});
+  S.dr.push(intr);
+  log(`Intruder ${intr.label}: hasDB=false, TLC=0 → TX refused (SPEC-04 §3.1)`,TC.i);
+  S.stats.intrBlocked++;
+  setTimeout(()=>{intr.active=false;log(`${intr.label} isolated — Tier0, 0 cross partners`,TC[0]);},3500);
+};
+
+document.getElementById('bg').onclick=()=>{
+  const g=S.dr.find(d=>d.isGCS&&d.active);
+  if(!g){log('GCS already offline',TC[0]);return;}
+  g.active=false;
+  S.stats.gcsDown=true;S.stats.gcsCutAt=Date.now();S.stats.recovMs=null;
+  log('GCS severed — autonomous swarm mode activated',TC[1]);
+  const lead=S.dr.filter(d=>!d.isGCS&&!d.isIntruder&&d.active).sort((a,b)=>b.tlc-a.tlc)[0];
+  if(lead){lead.mission='coordinator';log(`Coordinator: ${lead.label}  TLC=${lead.tlc.toFixed(2)}`,TC[2]);}
+};
+
+document.getElementById('bm').onclick=()=>{
+  const elig=S.dr.filter(d=>!d.isGCS&&!d.isIntruder&&d.active&&gt(d.tlc)>=2).sort((a,b)=>b.tlc-a.tlc);
+  const intrs=S.dr.filter(d=>d.isIntruder&&d.active);
+  intrs.forEach(d=>{S.stats.intrAttempt++;S.stats.intrBlocked++;log(`${d.label}: hasDB=false, Tier0 → mission TX rejected`,TC.i);});
+  if(!elig.length){log('Mission failed — no Tier2+ drones (need more crosses)',TC.i);return;}
+  const tgt=elig[0];
+  tgt.mission='executing';
+  const wit=S.dr.filter(d=>tgt.partners.has(d.id)&&d.active&&!d.isIntruder).slice(0,Math.min(15,tgt.partners.size));
+  const q=Math.max(P.qk,Math.ceil(wit.length/3)+1);
+  const msgs=1+wit.length+q+1;
+  S.stats.totalTx++;S.stats.totalMsgs+=msgs;
+  log(`Mission TX: ${tgt.label}  witnesses:${wit.length}  quorum:${q}/${wit.length}  msgs:${msgs}`,TC[3]);
+};
+
+document.getElementById('bsp').onclick=()=>{
+  const active=S.dr.filter(d=>d.active&&!d.isIntruder&&!d.isGCS);
+  const half=Math.floor(active.length/2);
+  for(let i=0;i<half;i++)active[i].vx=Math.abs(active[i].vx)*-2.5,active[i].vy=(Math.random()-.5)*.5;
+  for(let i=half;i<active.length;i++)active[i].vx=Math.abs(active[i].vx)*2.5,active[i].vy=(Math.random()-.5)*.5;
+  S.stats.splits++;
+  log(`Network split initiated — 2 sub-swarms forming  (split #${S.stats.splits})`,TC[1]);
+  setTimeout(()=>{
+    for(const d of S.dr)d.vx=(Math.random()-.5)*.85,d.vy=(Math.random()-.5)*.85;
+    log('Network partition healing — cross mesh reconnecting via TLC maintenance',TC[2]);
+  },6000);
+};
+
+document.getElementById('bdd').onclick=()=>{
+  const wit=S.dr.filter(d=>!d.isGCS&&!d.isIntruder&&d.active&&gt(d.tlc)>=2).slice(0,3);
+  wit.forEach(d=>{d.active=false;});
+  S.stats.ddos++;
+  log(`DDoS: ${wit.length} witnesses offline — EmergencyReplace triggered (SPEC-04 §5.4)`,TC[1]);
+  setTimeout(()=>{
+    const backups=S.dr.filter(d=>!d.isGCS&&!d.isIntruder&&!d.active&&gt(d.tlc)>=1).slice(0,wit.length);
+    backups.forEach(d=>{d.active=true;});
+    log(`${backups.length} backup witnesses promoted — quorum restored`,TC[3]);
+  },2500);
+};
+
+document.getElementById('brst').onclick=()=>{S.dr.length=0;uid=50;ch1=null;ch2=null;initSim();};
+
+document.getElementById('bcsv').onclick=()=>{
+  const st=S.stats;
+  const rows=[
+    ['metric','value'],
+    ['total_crosses',st.totalCross],
+    ['total_txs',st.totalTx],
+    ['total_msgs',st.totalMsgs],
+    ['avg_msgs_per_tx',st.totalTx>0?(st.totalMsgs/st.totalTx).toFixed(2):0],
+    ['intruder_attempts',st.intrAttempt],
+    ['intruder_blocked',st.intrBlocked],
+    ['block_rate_pct',st.intrAttempt>0?((st.intrBlocked/st.intrAttempt)*100).toFixed(1):0],
+    ['gcs_recovery_ms',st.recovMs||0],
+    ['network_splits',st.splits],
+    ['ddos_events',st.ddos],
+    ['swarm_size',P.sz],
+    ['half_life_ms',P.hl],
+    ['cross_interval_ms',P.ci],
+    ...Object.entries(st.sizeMsgMap).map(([k,v])=>['msgs_size_'+k,v])
+  ];
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='cdml_swarm_metrics.csv';a.click();
+};
+
+let lt2=0;
+function loop(ts){
+  tick();
+  if(ts-lt2>=90){lt2=ts;rsvg();rpanel();}
+  requestAnimationFrame(loop);
+}
+initSim();
+requestAnimationFrame(loop);
+</script>

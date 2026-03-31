@@ -1,0 +1,260 @@
+
+<style>
+.dr{display:flex;align-items:center;gap:5px;padding:3px 6px 3px 0;margin-bottom:2px;border-left:3px solid;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;background:var(--color-background-secondary);}
+.bw{flex:1;height:4px;background:var(--color-border-tertiary);border-radius:2px;overflow:hidden;}
+.bf{height:100%;transition:width .3s;}
+.lg{font-size:11px;line-height:1.7;height:148px;overflow-y:auto;background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 10px;border:0.5px solid var(--color-border-tertiary);}
+.le{display:flex;align-items:flex-start;gap:6px;color:var(--color-text-secondary);margin-bottom:1px;}
+.le.nw{color:var(--color-text-primary);}
+.ld{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.sb{padding:2px 8px;font-size:11px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);color:var(--color-text-secondary);}
+.cb{padding:5px 13px;font-size:12px;cursor:pointer;border-radius:var(--border-radius-md);background:transparent;font-family:var(--font-mono);}
+.cb:hover{opacity:.7;}
+</style>
+
+<div style="font-family:var(--font-mono);padding:1rem 0;max-width:920px;">
+  <div style="margin-bottom:10px;">
+    <div style="font-size:14px;font-weight:500;color:var(--color-text-primary);">CDML drone swarm simulation — Rev 8.0</div>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px;">TLC trust index · no full nodes · cross mesh guarantees swarm integrity</div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:10px;">
+    <button class="cb" id="bi" style="border:0.5px solid #E24B4A;color:#E24B4A;">+ intruder</button>
+    <button class="cb" id="bg" style="border:0.5px solid #EF9F27;color:#EF9F27;">cut GCS</button>
+    <button class="cb" id="bm" style="border:0.5px solid #1D9E75;color:#1D9E75;">assign mission</button>
+    <button class="cb" id="br" style="border:0.5px solid var(--color-border-secondary);color:var(--color-text-secondary);">reset</button>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <svg id="mp" width="548" height="320" style="flex-shrink:0;background:var(--color-background-secondary);border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);display:block;"></svg>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;">
+      <div>
+        <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);margin-bottom:4px;">Drone status</div>
+        <div id="dl" style="max-height:178px;overflow-y:auto;"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);margin-bottom:4px;">Event log</div>
+        <div class="lg" id="el"></div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;" id="st"></div>
+</div>
+
+<script>
+const W=548,H=320;
+const HL=28e3,CI=1300,BG=.05,MT=.70;
+const TC={0:'#888780',1:'#EF9F27',2:'#378ADD',3:'#1D9E75',i:'#E24B4A',g:'#7F77DD'};
+const gt=t=>t<.3?0:t<.7?1:t<1.5?2:3;
+const gc=d=>d.isIntruder?TC.i:d.isGCS?TC.g:TC[gt(d.tlc)];
+
+let uid=50;
+function nd(id,x,y,o={}){
+  return{id:String(id),label:o.label||'D'+id,x,y,
+    vx:(Math.random()-.5)*.85,vy:(Math.random()-.5)*.85,
+    tlc:o.tlc||0,peak:o.tlc||0,crosses:{},partners:new Set(),
+    nonce:0,isGCS:!!o.isGCS,isIntruder:!!o.isIntruder,
+    active:true,lastDecay:Date.now(),mission:null};
+}
+function dec(d){const n=Date.now();d.tlc*=Math.pow(.5,(n-d.lastDecay)/HL);d.lastDecay=n;}
+function gf(d,p){
+  const c=d.crosses[p]||0;
+  const rep=c>5?.1:Math.max(.3,1-c*.1);
+  const div=1+.2*Math.log1p(d.partners.size);
+  const col=d.partners.size<3?.6:1;
+  return BG*rep*div*col;
+}
+function cross(a,b){
+  dec(a);dec(b);
+  const ga=gf(a,b.id),gb=gf(b,a.id);
+  a.tlc+=ga;b.tlc+=gb;
+  a.peak=Math.max(a.peak,a.tlc);b.peak=Math.max(b.peak,b.tlc);
+  a.crosses[b.id]=(a.crosses[b.id]||0)+1;
+  b.crosses[a.id]=(b.crosses[a.id]||0)+1;
+  a.partners.add(b.id);b.partners.add(a.id);
+  a.nonce++;b.nonce++;
+  return[ga,gb];
+}
+function pp(s,pool){
+  const c=pool.filter(d=>d.id!==s.id&&d.active&&!d.isIntruder);
+  if(!c.length)return null;
+  const sc=c.map(d=>({d,s:(Math.hypot(s.x-d.x,s.y-d.y)/80)/((s.crosses[d.id]||0)+1)}));
+  let r=Math.random()*sc.reduce((t,x)=>t+x.s,0);
+  for(const{d,s}of sc){r-=s;if(r<=0)return d;}
+  return sc.at(-1).d;
+}
+
+const S={dr:[],ev:[],fl:[],lc:Date.now()};
+
+function initSim(){
+  S.dr=[nd(0,W/2,H/2,{label:'GCS',isGCS:true,tlc:1.8})];
+  for(let i=1;i<=12;i++){
+    const a=((i-1)/12)*Math.PI*2,r=82+Math.random()*58;
+    S.dr.push(nd(i,W/2+Math.cos(a)*r,H/2+Math.sin(a)*r));
+  }
+  for(let i=0;i<30;i++){
+    const a=S.dr[1+Math.floor(Math.random()*12)];
+    const b=S.dr[1+Math.floor(Math.random()*12)];
+    if(a.id!==b.id)cross(a,b);
+  }
+  S.ev=[];S.fl=[];S.lc=Date.now();
+  log('System online — cross mesh initializing',TC[2]);
+}
+
+function log(msg,color){
+  S.ev.unshift({msg,color:color||'#888780',t:Date.now()});
+  if(S.ev.length>15)S.ev.pop();
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function tick(){
+  const n=Date.now();
+  for(const d of S.dr){
+    if(!d.active||d.isGCS)continue;
+    d.x=Math.max(16,Math.min(W-16,d.x+d.vx));
+    d.y=Math.max(16,Math.min(H-16,d.y+d.vy));
+    if(d.x<=16||d.x>=W-16)d.vx*=-1;
+    if(d.y<=16||d.y>=H-16)d.vy*=-1;
+    d.vx=Math.max(-1.5,Math.min(1.5,d.vx+(Math.random()-.5)*.04));
+    d.vy=Math.max(-1.5,Math.min(1.5,d.vy+(Math.random()-.5)*.04));
+  }
+  if(n-S.lc>=CI){
+    S.lc=n;
+    const pl=S.dr.filter(d=>d.active&&!d.isIntruder);
+    if(pl.length>=2){
+      const a=pl[Math.floor(Math.random()*pl.length)],b=pp(a,pl);
+      if(b){
+        cross(a,b);
+        S.fl.push({x1:a.x,y1:a.y,x2:b.x,y2:b.y,age:1});
+        log(`Cross: ${a.label} x ${b.label}   T${gt(a.tlc)}(${a.tlc.toFixed(2)}) / T${gt(b.tlc)}(${b.tlc.toFixed(2)})`,TC[Math.min(gt(a.tlc),gt(b.tlc))]);
+      }
+    }
+  }
+  for(const d of S.dr){
+    if(!d.active||d.isIntruder||d.isGCS)continue;
+    if(d.peak>.4&&d.tlc<d.peak*MT){const b=pp(d,S.dr);if(b)cross(d,b);}
+  }
+  for(let i=S.fl.length-1;i>=0;i--){S.fl[i].age-=.045;if(S.fl[i].age<=0)S.fl.splice(i,1);}
+}
+
+const mp=document.getElementById('mp');
+function rsvg(){
+  let h='';
+  for(let i=0;i<=5;i++)h+=`<line x1="0" y1="${(i*(H/5)).toFixed(0)}" x2="${W}" y2="${(i*(H/5)).toFixed(0)}" style="stroke:var(--color-border-tertiary);stroke-width:.5;"/>`;
+  for(let i=0;i<=8;i++)h+=`<line x1="${(i*(W/8)).toFixed(0)}" y1="0" x2="${(i*(W/8)).toFixed(0)}" y2="${H}" style="stroke:var(--color-border-tertiary);stroke-width:.5;"/>`;
+
+  const ds=S.dr;
+  for(let i=0;i<ds.length;i++)for(let j=i+1;j<ds.length;j++){
+    const a=ds[i],b=ds[j];
+    if(!a.active||!b.active||a.isIntruder||b.isIntruder)continue;
+    const c=(a.crosses[b.id]||0);
+    if(c>0){
+      const op=Math.min(.55,.06+c*.045).toFixed(2);
+      const sw=Math.min(1.6,.3+c*.1).toFixed(1);
+      h+=`<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="#378ADD" stroke-opacity="${op}" stroke-width="${sw}"/>`;
+    }
+  }
+
+  for(const f of S.fl){
+    h+=`<line x1="${f.x1.toFixed(1)}" y1="${f.y1.toFixed(1)}" x2="${f.x2.toFixed(1)}" y2="${f.y2.toFixed(1)}" stroke="#1D9E75" stroke-opacity="${(f.age*.85).toFixed(2)}" stroke-width="2" stroke-dasharray="5 3"/>`;
+  }
+
+  for(const d of S.dr){
+    const t=gt(d.tlc),c=gc(d),r=d.isGCS?15:9+t*2,op=d.active?1:.2;
+    h+=`<g opacity="${op}">`;
+    h+=`<circle cx="${d.x.toFixed(1)}" cy="${d.y.toFixed(1)}" r="${r+5}" fill="none" stroke="${c}" stroke-width=".7" stroke-opacity=".22"/>`;
+    if(d.mission==='executing')h+=`<circle cx="${d.x.toFixed(1)}" cy="${d.y.toFixed(1)}" r="${r+10}" fill="none" stroke="#1D9E75" stroke-width="1.5" stroke-dasharray="4 2"/>`;
+    if(d.mission==='coordinator')h+=`<circle cx="${d.x.toFixed(1)}" cy="${d.y.toFixed(1)}" r="${r+10}" fill="none" stroke="#EF9F27" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+    h+=`<circle cx="${d.x.toFixed(1)}" cy="${d.y.toFixed(1)}" r="${r}" fill="${c}" fill-opacity=".9"/>`;
+    if(d.isIntruder){h+=`<line x1="${(d.x-6).toFixed(1)}" y1="${(d.y-6).toFixed(1)}" x2="${(d.x+6).toFixed(1)}" y2="${(d.y+6).toFixed(1)}" stroke="white" stroke-width="2.5"/><line x1="${(d.x+6).toFixed(1)}" y1="${(d.y-6).toFixed(1)}" x2="${(d.x-6).toFixed(1)}" y2="${(d.y+6).toFixed(1)}" stroke="white" stroke-width="2.5"/>`;}
+    if(d.isGCS&&d.active)h+=`<text x="${d.x.toFixed(1)}" y="${(d.y+4.5).toFixed(1)}" text-anchor="middle" style="font-size:13px;fill:white;font-weight:500;">+</text>`;
+    h+=`<text x="${d.x.toFixed(1)}" y="${(d.y-r-3).toFixed(1)}" text-anchor="middle" style="font-size:11px;fill:${c};font-weight:500;">${esc(d.label)}</text>`;
+    h+=`<text x="${d.x.toFixed(1)}" y="${(d.y+r+13).toFixed(1)}" text-anchor="middle" style="font-size:11px;fill:var(--color-text-secondary);">${d.tlc.toFixed(2)}</text>`;
+    h+='</g>';
+  }
+
+  h+=`<g transform="translate(7,${H-55})">`;
+  [['T0 — none',TC[0]],['T1 — small',TC[1]],['T2 — normal',TC[2]],['T3 — unlimited',TC[3]]].forEach(([l,c],i)=>{
+    h+=`<g transform="translate(0,${i*13})"><circle cx="5" cy="4" r="4.5" fill="${c}"/><text x="14" y="8.5" style="font-size:11px;fill:var(--color-text-secondary);">${l}</text></g>`;
+  });
+  h+='</g>';
+
+  mp.innerHTML=h;
+}
+
+function rpanel(){
+  const dl=document.getElementById('dl');
+  dl.innerHTML='';
+  for(const d of S.dr){
+    const t=gt(d.tlc),c=gc(d);
+    const r=document.createElement('div');
+    r.className='dr';
+    r.style.borderLeftColor=c;
+    r.style.opacity=d.active?'1':'.3';
+    r.innerHTML=`<span style="width:40px;font-size:11px;color:${c};font-weight:500;overflow:hidden;white-space:nowrap;">${esc(d.label)}</span><div class="bw"><div class="bf" style="background:${c};width:${Math.min(100,(d.tlc/2)*100).toFixed(1)}%;"></div></div><span style="font-size:11px;color:var(--color-text-secondary);width:30px;text-align:right;">${d.tlc.toFixed(2)}</span><span style="font-size:11px;color:${c};width:18px;text-align:right;">T${t}</span><span style="font-size:11px;color:var(--color-text-secondary);width:22px;text-align:right;">${d.partners.size}x</span>`;
+    dl.appendChild(r);
+  }
+
+  const el=document.getElementById('el');
+  el.innerHTML='';
+  S.ev.forEach((e,i)=>{
+    const r=document.createElement('div');
+    r.className='le'+(i===0?' nw':'');
+    r.innerHTML=`<span class="ld" style="background:${e.color};"></span><span>${esc(e.msg)}</span>`;
+    el.appendChild(r);
+  });
+
+  const st=document.getElementById('st');
+  const ac=S.dr.filter(d=>d.active&&!d.isIntruder).length;
+  const t3=S.dr.filter(d=>gt(d.tlc)===3&&!d.isIntruder).length;
+  const t2=S.dr.filter(d=>gt(d.tlc)>=2&&!d.isIntruder).length;
+  const ni=S.dr.filter(d=>d.isIntruder).length;
+  st.innerHTML=`<span class="sb">active: ${ac}</span><span class="sb">tier 3: ${t3}</span><span class="sb">tier 2+: ${t2}</span>${ni?`<span class="sb" style="color:#E24B4A;border-color:#E24B4A;">intruders: ${ni}</span>`:''}<span style="margin-left:auto;font-size:11px;color:#1D9E75;">live</span>`;
+}
+
+document.getElementById('bi').onclick=()=>{
+  S.dr.push(nd(++uid,25+Math.random()*110,20+Math.random()*90,{label:'INT',isIntruder:true}));
+  log('Intruder detected — TLC=0, Tier0, no cross history — TX signature refused',TC.i);
+};
+
+document.getElementById('bg').onclick=()=>{
+  const g=S.dr.find(d=>d.isGCS&&d.active);
+  if(!g){log('GCS already offline',TC[0]);return;}
+  g.active=false;
+  log('GCS link severed — switching to autonomous swarm mode',TC[1]);
+  const lead=S.dr.filter(d=>!d.isGCS&&!d.isIntruder&&d.active).sort((a,b)=>b.tlc-a.tlc)[0];
+  if(lead){
+    if(!lead.label.startsWith('[C]'))lead.label='[C]'+lead.label;
+    lead.mission='coordinator';
+    log(`Coordinator elected: ${lead.label}  TLC=${lead.tlc.toFixed(2)}, Tier${gt(lead.tlc)}`,TC[2]);
+  }
+};
+
+document.getElementById('bm').onclick=()=>{
+  const elig=S.dr.filter(d=>!d.isGCS&&!d.isIntruder&&d.active&&gt(d.tlc)>=2).sort((a,b)=>b.tlc-a.tlc);
+  if(!elig.length){log('Mission failed — no Tier 2+ drones available (more crosses needed)',TC.i);return;}
+  const tgt=elig[0];
+  tgt.mission='executing';
+  const wit=S.dr.filter(d=>tgt.partners.has(d.id)&&d.active&&!d.isIntruder).slice(0,7);
+  const q=Math.max(3,Math.ceil(wit.length*.43));
+  log(`Mission assigned: ${tgt.label}  TLC=${tgt.tlc.toFixed(2)}, Tier${gt(tgt.tlc)}`,TC[3]);
+  log(`Witnesses: ${wit.length} selected — quorum ${q}/${wit.length} signatures confirmed`,TC[2]);
+  const intr=S.dr.find(d=>d.isIntruder&&d.active);
+  if(intr)log(`${intr.label}: hasDB=false, Tier0 — TX refused (SPEC-04 §3.1 path 4)`,TC.i);
+};
+
+document.getElementById('br').onclick=()=>{
+  S.dr.length=0; uid=50;
+  initSim();
+  log('Swarm reset — cross mesh reinitializing',TC[2]);
+};
+
+let lt=0;
+function loop(ts){
+  tick();
+  if(ts-lt>=90){lt=ts;rsvg();rpanel();}
+  requestAnimationFrame(loop);
+}
+
+initSim();
+requestAnimationFrame(loop);
+</script>

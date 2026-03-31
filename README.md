@@ -1,6 +1,13 @@
+# CDML — DAG Ledger Without Full Nodes
+
 ![demo](./dron_sim.gif)
 
-# CDML — Cross-Density Mutual Surveillance Ledger
+**Drone Swarm Demo (No Full Nodes)**  
+A swarm of drones coordinating missions without any full node.
+
+→ No global state  
+→ No full nodes  
+→ Real-time consensus via DAG
 
 > **"What if a blockchain didn't need full nodes?"**
 

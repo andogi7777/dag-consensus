@@ -1,3 +1,5 @@
+![demo](./dron_sim.gif)
+
 # CDML — Cross-Density Mutual Surveillance Ledger
 
 > **"What if a blockchain didn't need full nodes?"**

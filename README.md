@@ -68,6 +68,35 @@ Traditional Blockchain:          CDML:
 
 ---
 
+## Use Cases
+
+### Drone Networks
+- Unstable connectivity environments  
+- Swarm coordination without central control  
+- Works under intermittent links  
+
+---
+
+### Disaster Communication
+- No infrastructure available  
+- Peer-to-peer communication  
+- Reliable data sharing in emergencies  
+
+---
+
+### IoT Systems
+- Low-power devices  
+- Intermittent network  
+- Lightweight validation without full nodes  
+
+| Environment | Problem | CDML Solution |
+|------------|--------|--------------|
+| Drone | Unstable network | Cross-validation DAG |
+| Disaster | No infrastructure | P2P consensus |
+| IoT | Resource limits | No full nodes |
+
+---
+
 ## Architecture
 
 ```

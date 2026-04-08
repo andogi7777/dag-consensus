@@ -1,4 +1,4 @@
-# CDML — DAG Ledger Without Full Nodes
+# CDML — A DAG Consensus That Works Without Full Nodes
 
 ![demo](./dron_sim.gif)
 

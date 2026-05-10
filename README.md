@@ -56,7 +56,7 @@ Traditional Blockchain:          CDML:
 
 ## Why This Matters
 
-| Property | Bitcoin / Ethereum | CDML |
+| Property | Traditional blockchains | CDML |
 |---|---|---|
 | Full node required | ✅ Required | ❌ Not required |
 | Archive node required | ✅ Required | ❌ Not required |

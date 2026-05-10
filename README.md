@@ -190,7 +190,7 @@ PRs:     Infrastructure layer only (network, storage, crypto)
 
 Core protocol changes (consensus, witness selection, TLC) require prior discussion.
 
-**Contact:** andogi@naver.com
+**Contact:** nonoan7777 (at) gmail.com
 
 ---
 

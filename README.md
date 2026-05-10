@@ -20,7 +20,7 @@ A swarm of drones coordinating missions without any full node.
 
 ## The Universal Assumption of Every Blockchain
 
-Bitcoin, Ethereum, Solana — every blockchain shares one premise:
+Traditional blockchains — every blockchain shares one premise:
 
 **Someone, somewhere, must store the entire ledger.**
 
